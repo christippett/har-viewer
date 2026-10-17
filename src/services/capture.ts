@@ -5,6 +5,7 @@ import type { HarLog } from '@/har/types'
 import { baseName } from '@/lib/download'
 import { formatBytes, pluralize } from '@/lib/format'
 import { useAppStore } from '@/store'
+import { disconnectStream } from './stream'
 import { parseHarFile } from './parser'
 import { clearSession, readSession, writeSession } from './session'
 import { applyCriteriaFromHash } from './url-state'
@@ -34,8 +35,8 @@ async function parseWithProgress(file: File): Promise<HarLog> {
 
 /** Commits the current capture (including deletions) so a reload restores it. */
 export async function persistSession({ notify = false } = {}): Promise<void> {
-  const { log, entries, fileName, markSaved } = store()
-  if (!log) return
+  const { log, entries, fileName, source, markSaved } = store()
+  if (!log || source === 'live') return
   await writeSession({
     fileName,
     log: withEntries(log, entries),
@@ -54,6 +55,7 @@ function open(log: HarLog, fileName: string) {
 }
 
 export async function openFile(file: File): Promise<void> {
+  disconnectStream()
   try {
     const log = await parseWithProgress(file)
     open(log, file.name)
@@ -65,6 +67,7 @@ export async function openFile(file: File): Promise<void> {
 }
 
 export async function openSample(): Promise<void> {
+  disconnectStream()
   const { createSampleLog } = await import('@/har/sample')
   open(createSampleLog(), 'sample-shop.har')
   await persistSession()
@@ -79,6 +82,7 @@ export async function openFiles(files: readonly File[]): Promise<void> {
 }
 
 export async function mergeFile(file: File): Promise<void> {
+  disconnectStream()
   const { log, entries, fileName } = store()
   if (!log) return openFile(file)
   try {
@@ -104,8 +108,10 @@ export async function loadComparison(file: File): Promise<void> {
 }
 
 export async function closeCapture(): Promise<void> {
+  const wasLive = store().source === 'live'
+  disconnectStream()
   store().closeCapture()
-  await clearSession()
+  if (!wasLive) await clearSession()
 }
 
 /** Restores the last session from IndexedDB; persisted UI state (filters, pins, notes) is kept. */

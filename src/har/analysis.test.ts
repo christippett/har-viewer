@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { diffCaptures, diffHeaders } from './compare'
 import { buildInitiatorTree } from './initiators'
-import { detectIssues } from './issues'
-import { captureRange, normalizeLog, statusGroup, toEntries } from './parse'
+import { detectIssues, type IssueCheck } from './issues'
+import { captureRange, entryStatusGroup, growRange, normalizeLog, statusGroup, toEntries } from './parse'
 import { createSampleLog } from './sample'
 import { entry } from './test-utils'
 import { phaseSegments } from './timings'
@@ -33,6 +33,16 @@ describe('parse', () => {
     const many = Array.from({ length: 200_000 }, (_, i) => entry(i, { start: i, time: 5 }))
     expect(captureRange(many)).toEqual({ start: many[0]!.startTime, end: many.at(-1)!.startTime + 5 })
   })
+
+  it('handles pending status group and grows range incrementally', () => {
+    const e = entry(1, { start: 100, time: 50, status: 0 })
+    expect(entryStatusGroup(e)).toBe('failed')
+    expect(entryStatusGroup({ ...e, pending: true })).toBe('pending')
+    const r1 = growRange({ start: 0, end: 0 }, e)
+    expect(r1).toEqual({ start: e.startTime, end: e.startTime + 50 })
+    const e2 = entry(2, { start: 200, time: 30 })
+    expect(growRange(r1, e2)).toEqual({ start: e.startTime, end: e2.startTime + 30 })
+  })
 })
 
 describe('phaseSegments', () => {
@@ -53,7 +63,7 @@ describe('phaseSegments', () => {
 })
 
 describe('detectIssues', () => {
-  const byId = (checks: ReturnType<typeof detectIssues>, id: string) => checks.find((c) => c.id === id)!
+  const byId = (checks: readonly IssueCheck[], id: string) => checks.find((c) => c.id === id)!
 
   it('flags errors, slow TTFB and duplicates', () => {
     const checks = detectIssues([

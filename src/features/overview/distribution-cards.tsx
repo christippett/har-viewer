@@ -12,7 +12,7 @@ export function StatusCard({ entries }: { entries: readonly Entry[] }) {
   const total = entries.length || 1
   const series = STATUS_SERIES.map((s) => ({
     ...s,
-    count: entries.filter((e) => seriesOf(statusGroup(e.status)) === s.key).length,
+    count: entries.filter((e) => !e.pending && seriesOf(statusGroup(e.status)) === s.key).length,
   })).filter((s) => s.count > 0)
   return (
     <Card title="Status codes" description="Share of responses by class">
