@@ -99,23 +99,24 @@ export function profilePerformance(entries: readonly Entry[]): PerformanceProfil
   const phaseTotals = new Map<PhaseKey, number>()
 
   for (const e of entries) {
-    if (e.status === 304) cached++
-    else if (e.status >= 200 && e.status < 400) fresh++
-    if (e.status >= 300 && e.status < 400 && e.status !== 304) redirects++
     if (e.method === 'OPTIONS') preflights++
     if (e.raw.connection) connections.add(e.raw.connection)
-
-    const encoded = findHeader(e.raw.response?.headers, 'content-encoding')
-    const body = e.raw.response?.bodySize ?? -1
-    const decoded = e.raw.response?.content?.size ?? -1
-    if (encoded) {
-      compressed++
-      if (body > 0 && decoded > 0) {
-        wireBytes += body
-        decodedBytes += decoded
+    if (!e.pending) {
+      if (e.status === 304) cached++
+      else if (e.status >= 200 && e.status < 400) fresh++
+      if (e.status >= 300 && e.status < 400 && e.status !== 304) redirects++
+      const encoded = findHeader(e.raw.response?.headers, 'content-encoding')
+      const body = e.raw.response?.bodySize ?? -1
+      const decoded = e.raw.response?.content?.size ?? -1
+      if (encoded) {
+        compressed++
+        if (body > 0 && decoded > 0) {
+          wireBytes += body
+          decodedBytes += decoded
+        }
+      } else {
+        uncompressed++
       }
-    } else {
-      uncompressed++
     }
 
     const version = (e.httpVersion || 'unknown').toLowerCase()

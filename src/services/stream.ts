@@ -197,7 +197,7 @@ export function connectStream(): void {
     clearQueue()
     rejectAllReplays('Live connection closed')
     const currentLabel = useAppStore.getState().live?.label ?? defaultStreamLabel()
-    if (intentionalClose) {
+    if (intentionalClose || useAppStore.getState().source !== 'live') {
       useAppStore.getState().setLive({ status: 'closed', label: currentLabel })
       return
     }

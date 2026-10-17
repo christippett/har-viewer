@@ -45,7 +45,7 @@ export function App() {
     void restoreSession().finally(() => setRestoring(false))
   }, [])
 
-  const connectingLive = isLiveEnv && !hasCapture && (live === null || live.status === 'connecting')
+  const connectingLive = isLiveEnv && !hasCapture && live?.status === 'connecting'
 
   return (
     <TooltipProvider delayDuration={450} skipDelayDuration={150}>

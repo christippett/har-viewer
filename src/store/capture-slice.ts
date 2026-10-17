@@ -195,8 +195,15 @@ export const createCaptureSlice: SliceCreator<CaptureSlice> = (set, get) => ({
   upsertLiveEntries: (incoming) => {
     if (get().source !== 'live' || incoming.length === 0) return
     const { entries, range } = get()
+    const existingById = new Map(entries.map((e) => [e.id, e]))
     const byId = new Map<number, Entry>()
-    for (const { id, entry } of incoming) byId.set(id, toEntry(entry, id))
+    for (const { id, entry } of incoming) {
+      const raw =
+        entry._webSocketMessages === undefined && existingById.has(id)
+          ? { ...entry, _webSocketMessages: existingById.get(id)!.raw._webSocketMessages }
+          : entry
+      byId.set(id, toEntry(raw, id))
+    }
     const replaced = new Set<number>()
     const nextEntries = entries.map((e) => {
       const updated = byId.get(e.id)

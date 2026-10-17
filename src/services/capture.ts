@@ -55,9 +55,9 @@ function open(log: HarLog, fileName: string) {
 }
 
 export async function openFile(file: File): Promise<void> {
-  disconnectStream()
   try {
     const log = await parseWithProgress(file)
+    disconnectStream()
     open(log, file.name)
     await persistSession()
   } catch (error) {
@@ -82,11 +82,16 @@ export async function openFiles(files: readonly File[]): Promise<void> {
 }
 
 export async function mergeFile(file: File): Promise<void> {
-  disconnectStream()
-  const { log, entries, fileName } = store()
-  if (!log) return openFile(file)
+  if (!store().log) return openFile(file)
   try {
     const incoming = await parseWithProgress(file)
+    disconnectStream()
+    const { log, entries, fileName } = store()
+    if (!log) {
+      open(incoming, file.name)
+      await persistSession()
+      return
+    }
     const merged = mergeLogs([withEntries(log, entries), incoming])
     store().openCapture({ log: merged, fileName: `${baseName(fileName)} + ${file.name}` })
     await persistSession()

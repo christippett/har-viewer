@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { diffCaptures, diffHeaders } from './compare'
+import { profilePerformance } from './metrics'
 import { buildInitiatorTree } from './initiators'
 import { detectIssues, type IssueCheck } from './issues'
 import { captureRange, entryStatusGroup, growRange, normalizeLog, statusGroup, toEntries } from './parse'
@@ -140,5 +141,40 @@ describe('buildInitiatorTree', () => {
     expect(tree.map((n) => n.entry.id)).toEqual([0, 3])
     expect(tree[0]!.size).toBe(2)
     expect(tree[0]!.children[0]!.children[0]!.entry.id).toBe(2)
+  })
+})
+describe('profilePerformance', () => {
+  it('ignores pending entries for response-specific compression and cache metrics', () => {
+    const pendingEntry = {
+      ...entry(0, { status: 0 }),
+      pending: true,
+      raw: {
+        ...entry(0).raw,
+        response: {
+          status: 0,
+          statusText: '',
+          httpVersion: '',
+          headers: [],
+          cookies: [],
+          content: { size: 0, mimeType: '' },
+          redirectURL: '',
+          headersSize: -1,
+          bodySize: -1,
+        },
+      },
+    }
+    const completedEntry = entry(1, {
+      status: 200,
+      responseHeaders: [{ name: 'content-encoding', value: 'gzip' }],
+    })
+    completedEntry.raw.response.bodySize = 100
+    completedEntry.raw.response.content.size = 300
+
+    const profile = profilePerformance([pendingEntry, completedEntry])
+    expect(profile.compressed).toBe(1)
+    expect(profile.uncompressed).toBe(0)
+    expect(profile.wireBytes).toBe(100)
+    expect(profile.decodedBytes).toBe(300)
+    expect(profile.fresh).toBe(1)
   })
 })

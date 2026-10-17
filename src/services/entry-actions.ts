@@ -38,14 +38,17 @@ export const copyUrls = (entries: readonly Entry[]) =>
 /** Removes requests and moves the selection to the nearest surviving visible row. Undoable. */
 export function deleteEntries(ids: readonly number[]): void {
   if (!ids.length) return
-  const onDelete = hostHooks()?.onDelete
-  if (onDelete) {
-    onDelete(ids)
-    return
-  }
-  if (isStreamConnected()) {
-    streamDelete(ids)
-    return
+  const isLive = useAppStore.getState().source === 'live'
+  if (isLive) {
+    const onDelete = hostHooks()?.onDelete
+    if (onDelete) {
+      onDelete(ids)
+      return
+    }
+    if (isStreamConnected()) {
+      streamDelete(ids)
+      return
+    }
   }
   const state = useAppStore.getState()
   const doomed = new Set(ids)
